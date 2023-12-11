@@ -13,6 +13,7 @@ Requirements:
 ### Method : With pip
 ```
 pip install flexgen
+sudo apt install openmpi-bin
 ```
 
 ## Performance Results
