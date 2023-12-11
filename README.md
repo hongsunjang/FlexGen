@@ -2,16 +2,9 @@
 
 ## Content
 - [Installation](#installation)
-- [Usage and Examples](#usage-and-examples)
-  - [Get Started with a Single GPU](#get-started-with-a-single-gpu)
-  - [Run HELM Benchmark with FlexGen](#run-helm-benchmark-with-flexgen)
-  - [Run Data Wrangling Tasks with FlexGen](#run-data-wrangling-tasks-with-flexgen)
-  - [Scaling to Distributed GPUs](#scaling-to-distributed-gpus)
-  - [API Example](#api-example)
-  - [Frequently Asked Questions](#frequently-asked-questions)
+
 - [Performance Results](#performance-results)
-- [How It Works](#how-it-works)
-- [Roadmap](#roadmap)
+
 
 ## Installation
 Requirements:  
@@ -22,8 +15,8 @@ Requirements:
 pip install flexgen
 ```
 
-## Usage and Examples
-You need at least four GPU to check results.
+## Performance Results
+You need at least four GPUs to check results.
 
 #### Baseline (FlexGen) (OPT-1.3B, OPT-6.7B)
 ```
