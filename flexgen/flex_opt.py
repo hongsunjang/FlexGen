@@ -190,9 +190,12 @@ class InputEmbed:
         else:
             (w_token, _), (w_pos, _) = weight_read_buf.val
 
+        #print("Input sequence size", h.shape)
         h = self.compute.opt_input_embed(h, mask,
             w_token, w_pos, self.config.pad_token_id, donate)
+
         hidden.val = h
+        #print("Input hidden size", h.shape)
 
 
 class OutputEmbed:
@@ -258,7 +261,10 @@ class OutputEmbed:
 
         h = self.compute.opt_output_embed(h, w_ln, b_ln, w_token, donate,
             self.task.do_sample, self.task.temperature)
+
         hidden.val = h
+
+        #print("Final Output size", h.shape)
 
 
 class SelfAttention:
@@ -531,6 +537,7 @@ class MLP:
 
         h = self.compute.mlp(h, wi, bi, wo, bo, w_ln, b_ln, donate)
         hidden.val = h
+        #print("Intermediate hidden size:", h.shape)
 
 
 class TransformerLayer:
@@ -646,6 +653,7 @@ class OptLM:
             os.path.join(self.path, f"{self.config.name}-np")))
         check_path = os.path.join(expanded_path, "decoder.embed_positions.weight")
         if not os.path.exists(check_path) and DUMMY_WEIGHT not in check_path:
+            print(self.config.name, " weights are downloaded in ", self.path)
             download_opt_weights(self.config.name, self.path)
 
         self.layers[j].init_weight(self.weight_home[j], expanded_path)
@@ -968,11 +976,15 @@ class OptLM:
                     load_cache_timer.start(self.sync)
                     self.load_cache(i, j, k)
                     load_cache_timer.stop(self.sync)
-                    self.load_hidden(i, j, k)
+
+                    self.load_hidden(i, j, k) 
+
                     compute_layer_timer.start(self.sync)
                     self.compute_layer(i, j, k)
                     compute_layer_timer.stop(self.sync)
+
                     self.store_hidden(i, j, k)
+
                     store_cache_timer.start(self.sync)
                     self.store_cache(i, j, k)
                     store_cache_timer.stop(self.sync)
@@ -1003,10 +1015,17 @@ class OptLM:
         print(f"load_weight            (per-layer)"
               f": {np.mean(timers('load_weight').costs):.6f} s")
         for stage in ["prefill", "decoding"]:
+            total_cost = 0 
             for func in ["load_cache", "store_cache", "compute_layer"]:
                 name = func + "_" + stage
                 costs = timers(name).costs
-                print(f"{name:22s} (per-batch): {np.mean(costs):.6f} s")
+                total_cost += np.mean(costs)
+
+            for func in ["load_cache", "store_cache", "compute_layer"]:
+                name = func + "_" + stage
+                costs = timers(name).costs
+
+                print(f"{name:22s} (per-batch): {np.mean(costs)/total_cost * 100:.2f}%")
 
     def generation_loop_overlap_single_batch(self):
         # Prologue
@@ -1249,11 +1268,11 @@ def run_flexgen(args):
     if DUMMY_WEIGHT not in args.path:
         outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
         show_str = "Outputs:\n" + 70 * '-' + "\n"
-        for i in [0, len(outputs)-1]:
+        for i in range( len(outputs) ):
             show_str += f"{i}: {outputs[i]}\n"
             show_str += "-" * 70 + "\n"
-        if args.verbose >= 2:
-            print(show_str)
+        #if args.verbose >= 2:
+        #    print(show_str)
 
     gpu.print_stats()
     cpu.print_stats()
@@ -1286,7 +1305,7 @@ def add_parser_arguments(parser):
         help="Cut generation length for fast debugging.")
     parser.add_argument("--debug-mode", type=str,
         choices=["fewer_batch", "breakdown"])
-    parser.add_argument("--gpu-batch-size", type=int, default=4)
+    parser.add_argument("--gpu-batch-size", type=int, default=32)
     parser.add_argument("--num-gpu-batches", type=int, default=1)
     parser.add_argument("--percent", nargs="+", type=int,
         default=[100, 0, 100, 0, 100, 0],
@@ -1314,7 +1333,7 @@ def add_parser_arguments(parser):
     parser.add_argument("--verbose", type=int, default=2)
 
     parser.add_argument("--overlap", type=str2bool, nargs='?',
-        const=True, default=True)
+        const=True, default=False)
 
 
 if __name__ == "__main__":

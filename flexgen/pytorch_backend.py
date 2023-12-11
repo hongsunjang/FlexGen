@@ -270,7 +270,10 @@ class TorchDevice:
 
         b, s, h = inputs.shape
 
-        hidden = F.layer_norm(inputs.data, (h,), weight=w_ln.data, bias=b_ln.data)
+        hidden = F.layer_norm(
+                inputs.data, (h,), weight=w_ln.data, bias=b_ln.data
+        )
+
         if donate[0]: inputs.delete()
 
         # output embedding
@@ -282,6 +285,7 @@ class TorchDevice:
             ids = torch.multinomial(probs, num_samples=1)
         else:
             ids = last_token_logits.argmax(dim=1, keepdim=True)
+
         return TorchTensor.create_from_torch(ids, self)
 
     def init_cache_one_gpu_batch(self, config, task, policy):
@@ -334,6 +338,21 @@ class TorchDevice:
         idx = torch.arange(s, device=self.dev)
         causal_mask = (idx <= idx.view(s, 1)).view(1, 1, s, s)
         mask = attention_mask.data.view(b, 1, 1, s) & causal_mask
+        
+        """
+        print('*' * 20)
+        cnt = 0 
+        for m in mask[0][0]:
+            val = sum([ int(a) for a in m ])
+            if val == 0:
+                cnt+=1;
+            else:
+                pass
+                #print(m)
+        print(cnt)
+        print('*' * 20)
+        #raise NotImplementedError
+        """
 
         # shape: (b, n_head, s, s)
         attn_weights = attn_weights.view(b, n_head, s, s)
@@ -416,15 +435,29 @@ class TorchDevice:
                 # shape: (b * n_head, s, head_dim)
                 v = v.permute(1, 0, 2).reshape(b * n_head, src_s, head_dim)
 
-                if k.is_cuda:
-                    value = self._attention_value(q, k, v, attention_mask.data,
-                        b, src_s, tgt_s, n_head, head_dim)
-                else:
-                    q = q.float().cpu()
-                    k, v = k.float(), v.float()
-                    value = self._attention_value(q, k, v, attention_mask.data,
-                        b, src_s, tgt_s, n_head, head_dim).cuda().half()
+                #if k.is_cuda:
+
+                value = self._attention_value(
+                        q, k, v, attention_mask.data,
+                        b, src_s, tgt_s, n_head, head_dim
+                )
+
+                #attn_weights = torch.bmm(q, k)
+                #mask = mask.view(b, 1, 1, src_s)
+                #attn_weights = attn_weights.view(b, n_head, 1, src_s)
+                #attn_weights = torch.where(mask, attn_weights, -1e4)
+                #attn_weights = attn_weights.view(b * n_head, 1, src_s)
+                #attn_weights = F.softmax(attn_weights, dim=2)
+                #return torch.bmm(attn_weights, v).view(b, n_head, tgt_s, head_dim)
+
+                #else:
+                #    q = q.float().cpu()
+                #    k, v = k.float(), v.float()
+                #    value = self._attention_value(q, k, v, attention_mask.data,
+                #        b, src_s, tgt_s, n_head, head_dim).cuda().half()
+
             else:  # Sparse attention
+                raise NotImplementedError
                 # shape: (s, b * n_head, head_dim)
                 k = k_cache.data[:src_s]
                 k[src_s - 1:src_s] = k_new
@@ -441,10 +474,13 @@ class TorchDevice:
                         attention_mask.data, b, src_s, tgt_s, n_head, head_dim,
                         attn_sparsity).cuda().half()
         else:  # Mixed device attention
+            raise NotImplementedError
             assert attn_sparsity >= 1.0
-            value = self._mixed_device_attention(q, k_cache, v_cache,
-                k_new, v_new, attention_mask.data, b, src_s, tgt_s,
-                n_head, head_dim)
+            value = self._mixed_device_attention(
+                    q, k_cache, v_cache,
+                    k_new, v_new, attention_mask.data, b, src_s, tgt_s,
+                    n_head, head_dim
+            )
 
         # shape: (b, 1, h)
         value = value.transpose(1, 2).view(b, tgt_s, h)
@@ -473,6 +509,8 @@ class TorchDevice:
         attn_weights = torch.bmm(q, k)
         # shape: (b, 1, 1, s)
         mask = mask.view(b, 1, 1, src_s)
+        #print("Mask shape: ", mask.shape)
+        #print("New token mask: ", sum([int(a) for a in mask[0][0][0]]))
         # shape: (b * n_head, 1, s)
         attn_weights = attn_weights.view(b, n_head, 1, src_s)
         attn_weights = torch.where(mask, attn_weights, -1e4)
