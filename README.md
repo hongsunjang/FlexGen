@@ -38,7 +38,7 @@ bash scripts/run_ours_hybrid.sh
 | System | OPT-1.3B | OPT-6.7B |
 | ------ | -------- | ------- |
 | Baseline (FlexGen )   | 1358.41 | 546.58 | 
-| Ours (DP) |  2434.33 | 532.36 | 
+| Ours (DP) |  2434.33 | 858.96 | 
 | Ours (Hybird)    | 2005.88 | 685.13 | 
 
 - Hardware: four NVIDIA A6000 instance on GCP with 512GB of DRAM 
