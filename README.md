@@ -21,7 +21,7 @@ You need at least four GPUs to check results.
 
 #### Baseline (FlexGen) (OPT-1.3B, OPT-6.7B)
 ```
-bash scripts/run_bash.sh
+bash scripts/run_base.sh
 ```
 
 #### Ours (DP) (OPT-1.3B, OPT-6.7B)
